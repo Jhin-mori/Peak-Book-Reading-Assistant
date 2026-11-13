@@ -148,7 +148,7 @@ elif page == "Search Books":
             first_publish_year=first_book.get("first_publish_year"),
             subjects=first_book.get("subject"),
             page_count=first_book.get("number_of_pages_median"),
-            cover_image=first_book.get("cover_i")
+            cover_image=first_book.get("https://covers.openlibrary.org/b/id/{self.cover_image}-L.jpg")
         )
 
         st.divider()
