@@ -31,6 +31,12 @@ if "results" not in st.session_state:
 if "selected_book" not in st.session_state:
     st.session_state.selected_book = None
 
+if "current_guide" not in st.session_state:
+    st.session_state.current_guide = None
+
+if "guide_book" not in st.session_state:
+    st.session_state.guide_book = None
+
 
 # Application title
 st.title("📚 AI Book Reading Assistant")
@@ -137,157 +143,170 @@ elif page == "Search Books":
             book_options
         )
 
-        selected_index = book_options.index(selected_option)
+        if selected_option in book_options:
+            selected_index = book_options.index(selected_option)
+            first_book = results[selected_index]
 
-        first_book = results[selected_index]
-
-        book = Book(
-            title=first_book.get("title"),
-            authors=first_book.get("author_name", []),
-            isbn=(first_book.get("isbn") or [None])[0],
-            first_publish_year=first_book.get("first_publish_year"),
-            subjects=first_book.get("subject"),
-            page_count=first_book.get("number_of_pages_median"),
-            cover_image=first_book.get("https://covers.openlibrary.org/b/id/{self.cover_image}-L.jpg")
-        )
-
-        st.divider()
-
-        st.subheader("📖 Book Information")
-
-        col1, col2 = st.columns([1, 2])
-
-        with col1:
-
-            cover_url = book.get_cover_url()
-
-            if cover_url:
-                st.image(cover_url, width=220)
-
-        with col2:
-
-            st.write(f"**Title:** {book.title}")
-
-            st.write(
-                f"**Author(s):** {', '.join(book.authors) if book.authors else 'Unknown'}"
+            # Build cover URL from integer ID
+            cover_id = first_book.get("cover_i")
+            cover_url = (
+                f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
+                if cover_id
+                else None
             )
 
-            st.write(f"**ISBN:** {book.isbn or 'Not available'}")
-
-            st.write(
-                f"**Publication Year:** {book.first_publish_year or 'Not available'}"
+            book = Book(
+                title=first_book.get("title"),
+                authors=first_book.get("author_name", []),
+                isbn=(first_book.get("isbn") or [None])[0],
+                first_publish_year=first_book.get("first_publish_year"),
+                subjects=first_book.get("subject"),
+                page_count=first_book.get("number_of_pages_median"),
+                cover_image=cover_url
             )
 
-            st.write(f"**Page Count:** {book.page_count or 'Not available'}")
+            st.divider()
 
-            st.write(
-                f"**ISBN Status:** {'Valid' if book.validate_isbn() else 'Invalid or unavailable'}"
-            )
+            st.subheader("📖 Book Information")
 
-        st.divider()
+            col1, col2 = st.columns([1, 2])
 
-        # AI READING GUIDE
-        st.subheader("🤖 AI Reading Guide")
+            with col1:
 
-        if st.button("Generate Reading Guide"):
+                cover_image_url = book.get_cover_url()
 
-            try:
+                if cover_image_url:
+                    st.image(cover_image_url, width=220)
 
-                with st.spinner("Generating your reading guide..."):
+            with col2:
 
-                    guide = guide_generator.generate_reading_guide(book)
+                st.write(f"**Title:** {book.title}")
 
-                st.session_state["current_guide"] = guide
-                st.session_state["guide_book"] = book.title
+                st.write(
+                    f"**Author(s):** {', '.join(book.authors) if book.authors else 'Unknown'}"
+                )
 
-            except Exception as e:
-                st.error(f"Unable to generate guide: {e}")
+                st.write(f"**ISBN:** {book.isbn or 'Not available'}")
 
-        if (
-            "current_guide" in st.session_state
-            and st.session_state.get("guide_book") == book.title
-        ):
+                st.write(
+                    f"**Publication Year:** {book.first_publish_year or 'Not available'}"
+                )
 
-            st.markdown(st.session_state.current_guide)
+                st.write(f"**Page Count:** {book.page_count or 'Not available'}")
 
-            if st.button("Save Reading Guide"):
+                st.write(
+                    f"**ISBN Status:** {'Valid' if book.validate_isbn() else 'Invalid or unavailable'}"
+                )
 
-                guide_data = {
-                    "title": book.title,
-                    "authors": book.authors,
-                    "publication_year": book.first_publish_year,
-                    "reading_guide": st.session_state.current_guide
-                }
+            st.divider()
+
+            # AI READING GUIDE
+            st.subheader("🤖 AI Reading Guide")
+
+            if st.button("Generate Reading Guide"):
 
                 try:
 
-                    if os.path.exists("reading_guides.json"):
+                    with st.spinner("Generating your reading guide..."):
 
-                        with open("reading_guides.json", "r") as file:
-                            guides = json.load(file)
+                        guide = guide_generator.generate_reading_guide(book)
 
-                    else:
-                        guides = []
+                    st.session_state["current_guide"] = guide
+                    st.session_state["guide_book"] = book.title
 
-                    guides.append(guide_data)
+                except Exception as e:
+                    st.error(f"Unable to generate guide: {e}")
 
-                    with open("reading_guides.json", "w") as file:
-                        json.dump(guides, file, indent=4)
+            if (
+                st.session_state.current_guide is not None
+                and st.session_state.guide_book == book.title
+            ):
 
-                    st.success("Reading guide saved successfully!")
+                st.markdown(st.session_state.current_guide)
 
-                except (OSError, json.JSONDecodeError) as e:
-                    st.error(f"Unable to save reading guide: {e}")
+                if st.button("Save Reading Guide"):
 
-        st.divider()
+                    guide_data = {
+                        "title": book.title,
+                        "authors": book.authors,
+                        "publication_year": book.first_publish_year,
+                        "reading_guide": st.session_state.current_guide
+                    }
 
-        # READING STATUS
-        st.subheader("📌 Reading Progress")
+                    try:
 
-        reading_status = st.selectbox(
-            "Choose your reading status",
-            ["Want to Read", "Currently Reading", "Finished"]
-        )
+                        if os.path.exists("reading_guides.json"):
 
-        if st.button("Save to Favourites"):
+                            with open("reading_guides.json", "r") as file:
+                                guides = json.load(file)
 
-            book_data = book.to_dict()
-            book_data["reading_status"] = reading_status
+                        else:
+                            guides = []
 
-            reading_manager.add_book(book_data)
+                        guides.append(guide_data)
 
-            st.success("Book saved to your favourites!")
+                        with open("reading_guides.json", "w") as file:
+                            json.dump(guides, file, indent=4)
 
-        st.divider()
+                        st.success("Reading guide saved successfully!")
 
-        # RECOMMENDATIONS
-        st.subheader("📚 Similar Books")
+                    except (OSError, json.JSONDecodeError) as e:
+                        st.error(f"Unable to save reading guide: {e}")
 
-        if book.subjects:
+            st.divider()
 
-            try:
+            # READING STATUS
+            st.subheader("📌 Reading Progress")
 
-                subject = book.subjects[0]
+            reading_status = st.selectbox(
+                "Choose your reading status",
+                ["Want to Read", "Currently Reading", "Finished"]
+            )
 
-                recommendations = client.search_by_subject(subject)
+            if st.button("Save to Favourites"):
 
-                for recommendation in recommendations:
+                book_data = book.to_dict()
+                book_data["reading_status"] = reading_status
 
-                    st.write(
-                        f"**{recommendation.get('title')}**"
-                    )
+                reading_manager.add_book(book_data)
 
-                    authors = recommendation.get("author_name", [])
+                st.success("Book saved to your favourites!")
 
-                    st.caption(
-                        f"Author: {', '.join(authors) if authors else 'Unknown'}"
-                    )
+            st.divider()
 
-            except Exception as e:
-                st.error(f"Unable to retrieve recommendations: {e}")
+            # RECOMMENDATIONS
+            st.subheader("📚 Similar Books")
 
-        else:
-            st.info("No subjects available for recommendations.")
+            # Defensive: subjects could be a string in edge cases
+            subjects = book.subjects
+            if isinstance(subjects, str):
+                subjects = [subjects]
+
+            if subjects:
+
+                try:
+
+                    subject = subjects[0]
+
+                    recommendations = client.search_by_subject(subject)
+
+                    for recommendation in recommendations:
+
+                        st.write(
+                            f"**{recommendation.get('title')}**"
+                        )
+
+                        authors = recommendation.get("author_name", [])
+
+                        st.caption(
+                            f"Author: {', '.join(authors) if authors else 'Unknown'}"
+                        )
+
+                except Exception as e:
+                    st.error(f"Unable to retrieve recommendations: {e}")
+
+            else:
+                st.info("No subjects available for recommendations.")
 
 
 # MY FAVOURITES PAGE
@@ -323,25 +342,23 @@ elif page == "My Favourites":
             # CSV EXPORT
             output = io.StringIO()
 
-            if favourites:
+            writer = csv.DictWriter(
+                output,
+                fieldnames=favourites[0].keys()
+            )
 
-                writer = csv.DictWriter(
-                    output,
-                    fieldnames=favourites[0].keys()
-                )
+            writer.writeheader()
+            writer.writerows(favourites)
 
-                writer.writeheader()
-                writer.writerows(favourites)
-
-                st.download_button(
-                    label="📥 Download Reading List as CSV",
-                    data=output.getvalue(),
-                    file_name="reading_list.csv",
-                    mime="text/csv"
-                )
+            st.download_button(
+                label="📥 Download Reading List as CSV",
+                data=output.getvalue(),
+                file_name="reading_list.csv",
+                mime="text/csv"
+            )
 
         else:
             st.info("You haven't saved any favourite books yet.")
 
     except (OSError, json.JSONDecodeError) as e:
-        st.error(f"Unable to load favourites: {e}")
+        st.error(f"Unable to load favourites: {e}")   
