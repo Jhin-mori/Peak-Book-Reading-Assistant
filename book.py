@@ -3,7 +3,8 @@ from utils import clean_isbn
 
 class Book:
 
-    def _init_(self, title, authors, isbn=None,
+    # Constructor: Initialise book attributes
+    def __init__(self, title, authors, isbn=None,
                  first_publish_year=None, subjects=None,
                  page_count=None, cover_image=None):
 
